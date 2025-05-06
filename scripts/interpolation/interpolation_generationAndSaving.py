@@ -7,6 +7,7 @@ import matplotlib.colors as mcolors
 import matplotlib.font_manager as fm
 from interpolation_utils import create_grid
 import os
+import json
 class OzoneInterpolator:
     """用于对臭氧数据进行逆距离加权插值并保存为多个时间戳命名的.npy文件的类"""
     
@@ -73,7 +74,8 @@ class OzoneInterpolator:
         将嵌套数据结构展平为平面字典格式。
 
         参数:
-            nested_data (dict): 嵌套数据，格式为 {时间戳: [{站点名称: [臭氧浓度, 经度, 纬度]}]}
+            nested_data (dict): 嵌套数据，格式为 {时间戳: {站点名称: [臭氧浓度, 经度, 纬度]}}
+                               或 {时间戳: [{站点名称: [臭氧浓度, 经度, 纬度]}]}
 
         返回:
             dict: 平面字典，包含 name, timestamp, ozone, lon, lat 列表
@@ -84,17 +86,33 @@ class OzoneInterpolator:
         lons = []
         lats = []
         
-        # 遍历每个时间戳
         for timestamp, stations in nested_data.items():
-            # 遍历时间戳下的站点列表
-            for station_dict in stations:
-                # 每个站点字典只有一个键值对
-                for name, values in station_dict.items():
-                    names.append(name)
+            # 处理 {站点名称: [臭氧浓度, 经度, 纬度]} 格式
+            if isinstance(stations, dict):
+                for station_name, values in stations.items():
+                    if not isinstance(values, list) or len(values) != 3:
+                        print(f"警告：站点 {station_name} 在时间戳 {timestamp} 的数据格式错误")
+                        continue
+                    names.append(station_name)
                     timestamps.append(timestamp)
                     ozone_values.append(values[0])  # 臭氧浓度
                     lons.append(values[1])         # 经度
                     lats.append(values[2])         # 纬度
+            # 处理 [{站点名称: [臭氧浓度, 经度, 纬度]}] 格式
+            elif isinstance(stations, list):
+                for station_dict in stations:
+                    for station_name, values in station_dict.items():
+                        if not isinstance(values, list) or len(values) != 3:
+                            print(f"警告：站点 {station_name} 在时间戳 {timestamp} 的数据格式错误")
+                            continue
+                        names.append(station_name)
+                        timestamps.append(timestamp)
+                        ozone_values.append(values[0])  # 臭氧浓度
+                        lons.append(values[1])         # 经度
+                        lats.append(values[2])         # 纬度
+            else:
+                print(f"警告：时间戳 {timestamp} 的数据格式不支持")
+                continue
         
         return {
             "name": names,
@@ -103,7 +121,6 @@ class OzoneInterpolator:
             "lon": lons,
             "lat": lats
         }
-    
     def interpolate_and_save(self, stations_data, output_dir="output", timestamps_path="timestamps.csv", visualize=False):
         """
         对每个时间戳的臭氧数据进行插值并保存为单独的.npy文件，文件名基于时间戳。
@@ -120,13 +137,9 @@ class OzoneInterpolator:
         # 创建输出目录
         os.makedirs(output_dir, exist_ok=True)
         
-        # 检查是否为嵌套数据结构
-        if all(isinstance(v, list) for v in stations_data.values()):
-            # 展平嵌套数据
-            df = pd.DataFrame(self.flatten_data(stations_data))
-        else:
-            # 直接使用平面字典
-            df = pd.DataFrame(stations_data)
+       
+        # 展平嵌套数据
+        df = pd.DataFrame(self.flatten_data(stations_data))
         
         # 确保时间戳为datetime格式
         df["timestamp"] = pd.to_datetime(df["timestamp"])
@@ -169,7 +182,7 @@ class OzoneInterpolator:
             saved_files.append(output_path)
             if visualize:
                 # 可视化插值结果
-                self._visualize(timestamp.strftime("%Y-%m-%d-%H"))
+                self._visualize(timestamp_str)
         
         
         return saved_files
@@ -202,26 +215,28 @@ class OzoneInterpolator:
         cbar.set_label("臭氧浓度 (μg/m³)")
         
         # 设置标题和绘图样式
-        ax.set_title(f"臭氧浓度热图 - {timestamp.strftime('%Y-%m-%d %H:%M')}", fontsize=14)
+        ax.set_title(f"臭氧浓度热图 - {timestamp}", fontsize=14)
         ax.set_axis_off()
         plt.tight_layout()
         plt.show()
 # 示例用法
 if __name__ == "__main__":
     # 示例嵌套数据
-    data = {
-        "2025-01-01": [
-            {"luohu": [40, 114.116872, 22.562334]},
-            {"nigang": [92, 114.1014, 22.5715]},
-            {"tongxinling": [88, 114.1063, 22.5545]}
-        ],
-        "2025-01-02": [
-            {"luohu": [45, 114.116872, 22.562334]},
-            {"nigang": [95, 114.1014, 22.5715]},
-            {"tongxinling": [90, 114.1063, 22.5545]}
-        ]
-    }
-    
+    # data = {
+    #     "2025-01-01": 
+    #         {"luohu": [40, 114.116872, 22.562334],
+    #         "nigang": [92, 114.1014, 22.5715],
+    #         "tongxinling": [88, 114.1063, 22.5545]}
+    #     ,
+    #     "2025-01-02": [
+    #         {"luohu": [45, 114.116872, 22.562334],
+    #         "nigang": [95, 114.1014, 22.5715],
+    #         "tongxinling": [90, 114.1063, 22.5545]}
+    #     ]
+    # }
+    # 将JSON文件转换为字典格式
+    data = json.load(open("F:\dachuang_network\data\JSON_data_for_interpolating.json", "r", encoding="utf-8"))
+    print(data)
     # 创建插值器实例
     interpolator = OzoneInterpolator(region_path="./scripts/interpolation/futian_luohu.json")
     output_dir = "./data/interpolation_data"
