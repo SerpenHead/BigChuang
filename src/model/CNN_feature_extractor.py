@@ -18,10 +18,11 @@ class CNNFeatureExtractor(nn.Module):
 
     def forward(self, x):
         """
+        同时处理 4 个视角的图片。输出的是 4 视角的特征
         输入 x: (B, T, 4, C, H, W)
         输出:  (B, T, 4 * out_dim)
         """
-        B, T, V, C, H, W = x.shape
+        B, T, V, C, H, W = x.shape                  # V - view , 4 个视角
         x = x.view(B * T * V, C, H, W)                # (B*T*4, C, H, W)
         x = self.feature_extractor(x)                # (B*T*4, out_dim, h, w)
         x = self.pool(x)                             # (B*T*4, out_dim, 1, 1)

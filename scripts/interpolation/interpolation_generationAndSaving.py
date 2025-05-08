@@ -1,3 +1,4 @@
+from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -235,10 +236,23 @@ if __name__ == "__main__":
     #     ]
     # }
     # 将JSON文件转换为字典格式
-    data = json.load(open("F:\dachuang_network\data\JSON_data_for_interpolating.json", "r", encoding="utf-8"))
+
+    # data = json.load(open("F:\dachuang_network\data\JSON_data_for_interpolating.json", "r", encoding="utf-8"))
+    # 处理相对路径
+    script_dir = Path(__file__).resolve().parent
+    # 找到项目根目录（上上级的上级：.../Bigchuang）
+    project_root = script_dir.parent.parent
+    # 拼出 data 路径
+    data_dir = project_root.parent / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)  # 若不存在则创建
+    json_path = data_dir / "JSON_data_for_interpolating.json"
+
+    data = json.load(open(json_path, "r", encoding="utf-8"))
     print(data)
     # 创建插值器实例
     interpolator = OzoneInterpolator(region_path="./scripts/interpolation/futian_luohu.json")
-    output_dir = "./data/interpolation_data"
+    # output_dir = "./data/interpolation_data"
+    output_dir = data_dir / "interpolation_data"
+    output_dir.mkdir(parents=True, exist_ok=True)  # 若不存在则创建
     # 执行插值并保存
-    ozone_data = interpolator.interpolate_and_save(data, output_dir,visualize=False)
+    ozone_data = interpolator.interpolate_and_save()
