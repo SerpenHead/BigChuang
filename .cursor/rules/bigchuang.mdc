@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+这个项目需要搭建一个 CNN + conv-LSTM 的模型，通过输入图像数据，来预测一个实际地区的臭氧浓度数据（这个数据是栅格化地图的格式）
+@model.py 是模型主体，并不一定正确，可以修改
+@dataloader.py 是 data loader
+@dataset.json 是生成的数据集标签，每一个样本是一个 seq（sequence），包含一份 npy 格式的臭氧浓度数据和 4 张不同覆盖了地图区域4个方向视角的照片
+geo_info 文件夹下的文件是原始 csv 格式的内容。
+
+理想状态下，输入数据应该是这样的：照片原始大小为2200*1400，4张照片需要经过随机裁切或者resize，变成较小的样子，然后经过 CNN 提取特征；4个图的特征拼接起来，作为conv-lstm的输入。
+目前lstm 的序列大小为3。
